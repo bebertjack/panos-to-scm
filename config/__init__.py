@@ -9,13 +9,17 @@ class AppConfig:
         self.max_workers = 4
         self.xml_file_path = 'running_config.xml'
         self.cisco_file_path = 'cisco_config.txt'
-        self.limit = '100000'
+        
+        # CORRECTION : limit doit être un entier (int), pas une string, 
+        # sinon les opérations de pagination/slicing planteront.
+        self.limit = 100000 
+        
         self.obj_types = [
             obj.Tag, obj.Application, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
             obj.AntiSpywareProfile, obj.FileBlockingProfile,
-            # obj.WildFireAntivirusProfile,
+            # obj.WildFireAntivirusProfile, # Gardé commenté (problème d'underscore/compilation)
             obj.DNSSecurityProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
             obj.Schedule, obj.DecryptionProfile, obj.HipObject, obj.HipProfile
         ]
@@ -46,15 +50,22 @@ class ConfigurationManager:
             "palo_api_token": "xxxxxxxxxxxxxxxxxxxxxx",
         }
         os.makedirs(os.path.dirname(self.config_file_path), exist_ok=True)
-        with open(self.config_file_path, 'w') as config_file:
+        with open(self.config_file_path, 'w', encoding='utf-8') as config_file:
             yaml.dump(default_config, config_file, default_flow_style=False)
         logging.error(f"Config file created at {self.config_file_path}. Please update it with your environment details.")
         sys.exit(1)
 
     def check_for_default_settings(self):
-        with open(self.config_file_path, 'r') as config_file:
+        with open(self.config_file_path, 'r', encoding='utf-8') as config_file:
             current_config = yaml.safe_load(config_file)
-            default_indicators = ["enter-username", "xxxxxxxxxxxxxxxxxxxxxx", "enter-unique-tsg-here"]
-            if any(indicator in str(current_config.values()) for indicator in default_indicators):
-                logging.error(f"Default settings detected in {self.config_file_path}. Please update the file with your environment details.")
-                sys.exit(1)
+            
+        default_indicators = ["enter-username", "xxxxxxxxxxxxxxxxxxxxxx", "enter-unique-tsg-here"]
+        
+        # Vérification sécurisée si le fichier est vide ou mal formé
+        if not isinstance(current_config, dict):
+            logging.error(f"Config file {self.config_file_path} is empty or invalid YAML.")
+            sys.exit(1)
+            
+        if any(indicator in str(current_config.values()) for indicator in default_indicators):
+            logging.error(f"Default settings detected in {self.config_file_path}. Please update the file with your environment details.")
+            sys.exit(1)
